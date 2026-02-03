@@ -1,0 +1,11 @@
+[package]
+name = "able"
+version = "1.0.0"
+edition = "2021"
+description = "Authority-Bound Liability Engine: Deterministic enforcement of autonomous actions through consumable authority units"
+license = "MIT"
+
+[dependencies]
+sha2 = "0.10"
+uuid = { version = "1.0", features = ["v4"] }
+thiserror = "1.0"
