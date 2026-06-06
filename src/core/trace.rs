@@ -1,5 +1,5 @@
-use uuid::Uuid;
 use crate::core::authority::current_timestamp;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct DecisionTrace {

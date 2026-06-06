@@ -5,7 +5,7 @@
 
 pub mod core;
 
-pub use core::authority::{AuthorityUnit, AuthorityError, current_timestamp};
+pub use core::authority::{current_timestamp, AuthorityError, AuthorityUnit};
 pub use core::gate::{ExecutionGate, ExecutionGateError};
 pub use core::manager::{AuthorityManager, ManagerError};
 pub use core::trace::{DecisionTrace, LiabilityRecord};
@@ -23,7 +23,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(au.id, "test-123");
         assert_eq!(au.scope, "read");
@@ -79,7 +80,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(au.hash().len(), 64);
     }
@@ -93,7 +95,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(au.is_valid(1640995200.0 + 1000.0, 3600));
         assert!(!au.is_valid(1640995200.0 + 3700.0, 3600));
@@ -108,7 +111,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(au.can_consume("read"));
         assert!(!au.can_consume("write"));
@@ -120,7 +124,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(au_any.can_consume("read"));
         assert!(au_any.can_consume("write"));
@@ -137,14 +142,11 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
-        let result = gate.execute_with_authority(
-            &au,
-            &|| Ok("success".to_string()),
-            "test_action",
-            "read"
-        );
+        let result =
+            gate.execute_with_authority(&au, &|| Ok("success".to_string()), "test_action", "read");
 
         assert!(result.is_ok());
         let (trace, liability) = result.unwrap();
@@ -165,14 +167,11 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
-        let result = gate.execute_with_authority(
-            &au,
-            &|| Ok("success".to_string()),
-            "test_action",
-            "read"
-        );
+        let result =
+            gate.execute_with_authority(&au, &|| Ok("success".to_string()), "test_action", "read");
 
         assert!(result.is_err());
     }
@@ -188,15 +187,12 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // First execution should succeed
-        let result1 = gate.execute_with_authority(
-            &au,
-            &|| Ok("success".to_string()),
-            "test_action",
-            "read"
-        );
+        let result1 =
+            gate.execute_with_authority(&au, &|| Ok("success".to_string()), "test_action", "read");
         assert!(result1.is_ok());
 
         // Second execution with same authority should fail
@@ -204,7 +200,7 @@ mod tests {
             &au,
             &|| Ok("success".to_string()),
             "test_action_2",
-            "read"
+            "read",
         );
         assert!(result2.is_err());
     }
@@ -220,13 +216,14 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         let result = gate.execute_with_authority(
             &au,
             &|| Err("Action failed".to_string()),
             "failing_action",
-            "read"
+            "read",
         );
 
         assert!(result.is_err());
@@ -245,24 +242,17 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Should succeed - matching scope
-        let result1 = gate.execute_with_authority(
-            &au,
-            &|| Ok("success".to_string()),
-            "fetch_data",
-            "read"
-        );
+        let result1 =
+            gate.execute_with_authority(&au, &|| Ok("success".to_string()), "fetch_data", "read");
         assert!(result1.is_ok());
 
         // Should fail - mismatched scope
-        let result2 = gate.execute_with_authority(
-            &au,
-            &|| Ok("success".to_string()),
-            "write_data",
-            "write"
-        );
+        let result2 =
+            gate.execute_with_authority(&au, &|| Ok("success".to_string()), "write_data", "write");
         assert!(result2.is_err());
     }
 
@@ -277,7 +267,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         let au2 = AuthorityUnit::new(
             "test-456".to_string(),
@@ -286,23 +277,16 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Should succeed for any action scope
-        let result1 = gate.execute_with_authority(
-            &au1,
-            &|| Ok("success".to_string()),
-            "fetch_data",
-            "read"
-        );
+        let result1 =
+            gate.execute_with_authority(&au1, &|| Ok("success".to_string()), "fetch_data", "read");
         assert!(result1.is_ok());
 
-        let result2 = gate.execute_with_authority(
-            &au2,
-            &|| Ok("success".to_string()),
-            "write_data",
-            "write"
-        );
+        let result2 =
+            gate.execute_with_authority(&au2, &|| Ok("success".to_string()), "write_data", "write");
         assert!(result2.is_ok());
     }
 
@@ -317,7 +301,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         manager.issue_authority(au).unwrap();
 
@@ -335,7 +320,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         manager.issue_authority(au.clone()).unwrap();
 
@@ -355,7 +341,8 @@ mod tests {
             10,
             ts,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         manager.issue_authority(au.clone()).unwrap();
         assert!(manager.validate_authority(&au));
@@ -372,7 +359,8 @@ mod tests {
             10,
             1640995200.0,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Don't issue it, so validation should fail
         assert!(!manager.validate_authority(&au));
@@ -390,7 +378,8 @@ mod tests {
             10,
             ts,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         manager.issue_authority(au1).unwrap();
 
@@ -402,7 +391,8 @@ mod tests {
             20, // Different price
             ts,
             None,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Should not validate because it's a different authority unit
         assert!(!manager.validate_authority(&au2));
@@ -412,5 +402,89 @@ mod tests {
     fn test_authority_manager_get_nonexistent() {
         let manager = AuthorityManager::new();
         assert!(manager.get_authority("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_authority_unit_rejects_empty_id_and_invalid_timestamp() {
+        let empty_id = AuthorityUnit::new(
+            "".to_string(),
+            "read".to_string(),
+            vec!["root".to_string()],
+            10,
+            1640995200.0,
+            None,
+        );
+        assert!(matches!(empty_id, Err(AuthorityError::EmptyId)));
+
+        let non_finite_timestamp = AuthorityUnit::new(
+            "test-123".to_string(),
+            "read".to_string(),
+            vec!["root".to_string()],
+            10,
+            f64::NAN,
+            None,
+        );
+        assert!(matches!(
+            non_finite_timestamp,
+            Err(AuthorityError::InvalidTimestamp)
+        ));
+    }
+
+    #[test]
+    fn test_authority_unit_future_timestamp_is_invalid() {
+        let au = AuthorityUnit::new(
+            "test-123".to_string(),
+            "read".to_string(),
+            vec!["root".to_string()],
+            10,
+            2000.0,
+            None,
+        )
+        .unwrap();
+
+        assert!(!au.is_valid(1999.0, 3600));
+    }
+
+    #[test]
+    fn test_authority_hash_disambiguates_delegation_chain_entries() {
+        let au1 = AuthorityUnit::new(
+            "test-123".to_string(),
+            "read".to_string(),
+            vec!["root,user".to_string(), "approver".to_string()],
+            10,
+            1640995200.0,
+            None,
+        )
+        .unwrap();
+
+        let au2 = AuthorityUnit::new(
+            "test-123".to_string(),
+            "read".to_string(),
+            vec!["root".to_string(), "user,approver".to_string()],
+            10,
+            1640995200.0,
+            None,
+        )
+        .unwrap();
+
+        assert_ne!(au1.hash(), au2.hash());
+    }
+
+    #[test]
+    fn test_authority_manager_rejects_invalid_public_authority() {
+        let manager = AuthorityManager::new();
+        let au = AuthorityUnit {
+            id: "".to_string(),
+            scope: "read".to_string(),
+            delegation_chain: vec!["root".to_string()],
+            price: 10,
+            timestamp: 1640995200.0,
+            prev_hash: None,
+        };
+
+        assert!(matches!(
+            manager.issue_authority(au),
+            Err(ManagerError::InvalidAuthority(_))
+        ));
     }
 }
