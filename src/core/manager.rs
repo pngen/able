@@ -1,4 +1,4 @@
-use crate::core::authority::{AuthorityUnit, current_timestamp};
+use crate::core::authority::{current_timestamp, AuthorityUnit};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use thiserror::Error;
@@ -7,6 +7,8 @@ use thiserror::Error;
 pub enum ManagerError {
     #[error("authority with ID {0} already exists")]
     DuplicateAuthority(String),
+    #[error("invalid authority: {0}")]
+    InvalidAuthority(String),
     #[error("internal lock error")]
     LockError,
 }
@@ -38,7 +40,12 @@ impl AuthorityManager {
     }
 
     pub fn issue_authority(&self, au: AuthorityUnit) -> Result<(), ManagerError> {
-        let mut guard = self.authorities.write().map_err(|_| ManagerError::LockError)?;
+        au.validate_invariants()
+            .map_err(|err| ManagerError::InvalidAuthority(err.to_string()))?;
+        let mut guard = self
+            .authorities
+            .write()
+            .map_err(|_| ManagerError::LockError)?;
         if guard.contains_key(&au.id) {
             return Err(ManagerError::DuplicateAuthority(au.id.clone()));
         }
@@ -52,7 +59,7 @@ impl AuthorityManager {
             Err(_) => return false,
         };
         match guard.get(&au.id) {
-            Some(stored_au) if stored_au == au => {
+            Some(stored_au) if stored_au == au && stored_au.validate_invariants().is_ok() => {
                 stored_au.is_valid(current_timestamp(), self.max_age_seconds)
             }
             _ => false,

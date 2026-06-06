@@ -35,7 +35,10 @@ impl<F: Fn(&AuthorityUnit) -> bool + Send + Sync> ExecutionGate<F> {
     }
 
     pub fn is_consumed(&self, au_id: &str) -> Result<bool, ExecutionGateError> {
-        let guard = self.consumed_au_ids.lock().map_err(|_| ExecutionGateError::LockError)?;
+        let guard = self
+            .consumed_au_ids
+            .lock()
+            .map_err(|_| ExecutionGateError::LockError)?;
         Ok(guard.contains(au_id))
     }
 
@@ -50,7 +53,10 @@ impl<F: Fn(&AuthorityUnit) -> bool + Send + Sync> ExecutionGate<F> {
             return Err(ExecutionGateError::InvalidAuthority(au.id.clone()));
         }
 
-        let mut guard = self.consumed_au_ids.lock().map_err(|_| ExecutionGateError::LockError)?;
+        let mut guard = self
+            .consumed_au_ids
+            .lock()
+            .map_err(|_| ExecutionGateError::LockError)?;
 
         if guard.contains(&au.id) {
             return Err(ExecutionGateError::AlreadyConsumed(au.id.clone()));
@@ -68,17 +74,9 @@ impl<F: Fn(&AuthorityUnit) -> bool + Send + Sync> ExecutionGate<F> {
 
         match action_fn() {
             Ok(result) => {
-                let dt = DecisionTrace::new(
-                    action_name.to_string(),
-                    au.id.clone(),
-                    result,
-                );
-                let lr = LiabilityRecord::new(
-                    dt.id.clone(),
-                    au.id.clone(),
-                    au.price,
-                    au.scope.clone(),
-                );
+                let dt = DecisionTrace::new(action_name.to_string(), au.id.clone(), result);
+                let lr =
+                    LiabilityRecord::new(dt.id.clone(), au.id.clone(), au.price, au.scope.clone());
                 Ok((dt, lr))
             }
             Err(e) => {
