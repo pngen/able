@@ -13,15 +13,18 @@ pub enum AuthorityError {
     EmptyDelegationChain,
     #[error("delegation chain entries must not be empty")]
     EmptyDelegationEntry,
+    #[error("delegation chain must not contain duplicate principals: {0}")]
+    DuplicateDelegationEntry(String),
     #[error("timestamp must be finite and non-negative")]
     InvalidTimestamp,
+    #[error("previous hash must be a 64-character hexadecimal SHA-256 digest")]
+    InvalidPreviousHash,
 }
 
 pub fn current_timestamp() -> f64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .expect("system time before UNIX epoch")
-        .as_secs_f64()
+        .map_or(f64::NAN, |duration| duration.as_secs_f64())
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -56,23 +59,40 @@ impl AuthorityUnit {
     }
 
     pub fn validate_invariants(&self) -> Result<(), AuthorityError> {
-        if self.id.is_empty() {
+        if self.id.trim().is_empty() {
             return Err(AuthorityError::EmptyId);
         }
         if self.price < 0 {
             return Err(AuthorityError::NegativePrice(self.price));
         }
-        if self.scope.is_empty() {
+        if self.scope.trim().is_empty() {
             return Err(AuthorityError::EmptyScope);
         }
         if self.delegation_chain.is_empty() {
             return Err(AuthorityError::EmptyDelegationChain);
         }
-        if self.delegation_chain.iter().any(|entry| entry.is_empty()) {
+        if self
+            .delegation_chain
+            .iter()
+            .any(|entry| entry.trim().is_empty())
+        {
             return Err(AuthorityError::EmptyDelegationEntry);
         }
-        if !self.timestamp.is_finite() || self.timestamp < 0.0 {
+        for (index, entry) in self.delegation_chain.iter().enumerate() {
+            if self.delegation_chain[..index].contains(entry) {
+                return Err(AuthorityError::DuplicateDelegationEntry(entry.clone()));
+            }
+        }
+        if !self.timestamp.is_finite()
+            || self.timestamp < 0.0
+            || (self.timestamp == 0.0 && self.timestamp.is_sign_negative())
+        {
             return Err(AuthorityError::InvalidTimestamp);
+        }
+        if let Some(hash) = &self.prev_hash {
+            if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                return Err(AuthorityError::InvalidPreviousHash);
+            }
         }
         Ok(())
     }
@@ -105,11 +125,13 @@ impl AuthorityUnit {
             "timestamp",
             &self.timestamp.to_bits().to_string(),
         );
-        update_part(
-            &mut hasher,
-            "prev_hash",
-            self.prev_hash.as_deref().unwrap_or(""),
-        );
+        match &self.prev_hash {
+            Some(previous_hash) => {
+                update_part(&mut hasher, "prev_hash_present", "true");
+                update_part(&mut hasher, "prev_hash", previous_hash);
+            }
+            None => update_part(&mut hasher, "prev_hash_present", "false"),
+        }
         let result = hasher.finalize();
         format!("{:x}", result)
     }
@@ -129,6 +151,6 @@ impl AuthorityUnit {
     }
 
     pub fn can_consume(&self, action_scope: &str) -> bool {
-        self.scope == action_scope || self.scope == "any"
+        !action_scope.trim().is_empty() && (self.scope == action_scope || self.scope == "any")
     }
 }

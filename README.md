@@ -1,10 +1,10 @@
 # Authority-Bound Liability Engine (ABLE)
 
-Deterministic enforcement of autonomous actions through consumable authority units, ensuring accountability and traceability.
+In-process enforcement of autonomous actions through consumable authority units, with integrity-verifiable accountability records.
 
 ## Overview
 
-ABLE binds autonomous execution to consumable authority and priced accountability. It prevents unauthorized actions by construction through mandatory interception points, atomic execution, and immutable tracing.
+ABLE binds autonomous execution to consumable authority and priced accountability. Applications opt in by routing actions through an execution gate, supplying an authority validator, and separately supplying canonical trusted `action_scope` metadata.
 
 ## Architecture
 
@@ -38,19 +38,19 @@ ABLE binds autonomous execution to consumable authority and priced accountabilit
 ## Components
 
 ### AuthorityUnit (AU)  
-A consumable, immutable unit encoding scope, delegation chain, and price. Once consumed, an AU cannot be reused, replayed, or partially applied.
+A validated unit encoding scope, delegation chain, and price. Once execution starts, the exact AU commitment cannot be reused by another gate in the same process, including after an executor error or panic. Exhaustion and evidence share one process-wide state. Hosts that require exhaustion across restarts must persist consumed commitments and evidence outside this in-memory library.
 
 ### ExecutionGate (EG)  
-The mandatory interception point for any autonomous action. Authority validation, execution, and trace emission occur as a single atomic operation. No bypass path exists.
+The interception point for integrated autonomous actions. Invariant checks, caller-supplied validation, scope checks, authority reservation, and a `started` trace occur before the executor is invoked. Arbitrary external callback effects cannot be rolled back atomically; integrations needing exactly-once effects must use transactional or idempotent executors.
 
 ### DecisionTrace (DT)  
-An append-only record emitted at execution. Every action yields an immutable trace bound to the authority consumed.
+A hash-chained record retained in process-wide enforcement state. Invoked actions receive `started` and terminal success, failure, or panic records bound to the authority commitment and claimed action scope. Terminal records use observed completion time when the clock remains trustworthy and the last trusted logical time if it fails after invocation. Returned copies expose public fields for compatibility. `verify_integrity` checks only a record's self-consistency; `contains_audit_record` and `verify_audit_chain` establish membership in the retained journal.
 
 ### LiabilityRecord (LR)  
-A deterministic mapping from a DecisionTrace to accountable parties and price. Establishes priced accountability for every authorized action.
+A deterministic mapping from a terminal DecisionTrace to the authority delegation chain, actual claimed action scope, and price.
 
 ### AuthorityManager  
-Manages authority unit issuance and validation. Authority issuance and validation are explicit responsibilities within a scoped enforcement core.
+Manages authority unit issuance and validation. Manager-issued age policies are bound to the full authority commitment; the strictest registered ancestor policy is rechecked when authority is delegated or reserved.
 
 ## Build
 
@@ -64,22 +64,18 @@ cargo build --release
 cargo test
 ```
 
-## Run
+## Runtime integration
 
-```bash
-./able # Linux/macOS
-
-.\able.exe # Windows
-```
+ABLE is a library, not a standalone service. The packaged binary exits with an explanatory error so it cannot be mistaken for an active enforcement layer.
 
 ## Design Principles
 
-1. **Deterministic Enforcement** - Given identical inputs and authority state, outcomes are identical.
-2. **Traceability** - Every action yields an immutable trace bound to the authority consumed.
-3. **Atomicity** - Authority validation, execution, and trace emission occur as a single atomic operation.
-4. **Exhaustion** - Consumed authority cannot be reused, replayed, or partially applied.
-5. **No Bypass** - All autonomous actions must go through the Execution Gate.
+1. **Deterministic Commitments** - Authority, trace, and liability commitments use unambiguous SHA-256 encodings.
+2. **Traceability** - Integrated execution attempts are retained in a verifiable process-wide hash chain.
+3. **Fail-Closed Reservation** - Validation and authority reservation precede invocation; ambiguous failures never restore authority.
+4. **In-Process Exhaustion** - An invoked authority commitment cannot be replayed through another gate in the same process.
+5. **Explicit Boundary** - Applications must make the Execution Gate the exclusive path to privileged resources.
 
 ## Requirements
 
-- Rust 1.56+
+- Rust 1.71+

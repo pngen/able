@@ -2,10 +2,11 @@
 name = "able"
 version = "1.0.0"
 edition = "2021"
-description = "Authority-Bound Liability Engine: Deterministic enforcement of autonomous actions through consumable authority units"
+description = "Authority-Bound Liability Engine: in-process enforcement with consumable authority commitments"
 license = "MIT"
+rust-version = "1.71"
 
 [dependencies]
 sha2 = "0.10"
-uuid = { version = "1.0", features = ["v4"] }
 thiserror = "1.0"
+lazy_static = "1.4"
