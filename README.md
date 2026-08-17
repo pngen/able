@@ -64,9 +64,19 @@ cargo build --release
 cargo test
 ```
 
+## Run
+
+```bash
+cargo build --release
+./target/release/able # Linux/macOS
+.\target\release\able.exe # Windows
+```
+
+The packaged binary is the supervised AIGOS layer process: it emits the canonical startup line and remains alive until the supervisor terminates it.
+
 ## Runtime integration
 
-ABLE is a library, not a standalone service. The packaged binary exits with an explanatory error so it cannot be mistaken for an active enforcement layer.
+ABLE enforces in-process through `ExecutionGate` in host applications. The standalone layer binary provides the AIGOSD-supervised runtime presence; enforcement state remains in-process.
 
 ## Design Principles
 
