@@ -100,6 +100,33 @@ fn effective_manager_max_age(state: &AuditJournal, authority_hash: &str) -> Opti
     None
 }
 
+/// Reports whether any registered predecessor of the authority has been
+/// consumed. The manager refuses to delegate from a consumed authority, so a
+/// delegation issued before that consumption must not outlive it either.
+fn has_consumed_predecessor(state: &AuditJournal, authority_hash: &str) -> bool {
+    let mut current_hash = authority_hash.to_string();
+    for _ in 0..=state.manager_policies.len() {
+        let parent_hash = match state
+            .manager_policies
+            .iter()
+            .find(|policy| policy.authority_hash == current_hash)
+            .and_then(|policy| policy.parent_hash.as_ref())
+        {
+            Some(parent_hash) => parent_hash,
+            None => return false,
+        };
+        if state
+            .consumed
+            .iter()
+            .any(|entry| entry.authority_hash == *parent_hash)
+        {
+            return true;
+        }
+        current_hash = parent_hash.clone();
+    }
+    false
+}
+
 pub(crate) fn register_manager_policy(
     authority_hash: String,
     max_age_seconds: i64,
@@ -398,6 +425,22 @@ impl<F: Fn(&AuthorityUnit) -> bool + Send + Sync> ExecutionGate<F> {
                 "authority already consumed",
             )?;
             return Err(ExecutionGateError::AlreadyConsumed(au.id.clone()));
+        }
+        if has_consumed_predecessor(&state, authority_hash) {
+            Self::append_event_locked(
+                &mut state,
+                au,
+                authority_hash,
+                action_name,
+                action_scope,
+                "rejected",
+                "predecessor authority already consumed",
+                timestamp,
+            )?;
+            return Err(ExecutionGateError::InvalidAuthority(format!(
+                "{} (predecessor authority already consumed)",
+                au.id
+            )));
         }
 
         Self::append_event_locked(

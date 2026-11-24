@@ -1021,6 +1021,78 @@ mod tests {
     }
 
     #[test]
+    fn test_delegation_issued_before_parent_consumption_is_exhausted_with_it() {
+        let manager = AuthorityManager::with_max_age(i64::MAX);
+        let timestamp = current_timestamp();
+        let parent = AuthorityUnit::new(
+            "early-delegation-parent".to_string(),
+            "read".to_string(),
+            vec!["root".to_string()],
+            10,
+            timestamp,
+            None,
+        )
+        .unwrap();
+        manager.issue_authority(parent.clone()).unwrap();
+        let child = AuthorityUnit::new(
+            "early-delegation-child".to_string(),
+            "read".to_string(),
+            vec!["root".to_string(), "reader".to_string()],
+            10,
+            timestamp,
+            Some(parent.hash()),
+        )
+        .unwrap();
+        manager.issue_authority(child.clone()).unwrap();
+        let grandchild = AuthorityUnit::new(
+            "early-delegation-grandchild".to_string(),
+            "read".to_string(),
+            vec![
+                "root".to_string(),
+                "reader".to_string(),
+                "agent".to_string(),
+            ],
+            10,
+            timestamp,
+            Some(child.hash()),
+        )
+        .unwrap();
+        manager.issue_authority(grandchild.clone()).unwrap();
+
+        let gate = ExecutionGate::new(|candidate| manager.validate_authority(candidate));
+        gate.execute_with_authority(
+            &parent,
+            &|| Ok("used".to_string()),
+            "consume_parent",
+            "read",
+        )
+        .unwrap();
+
+        // Delegating first and consuming the parent afterwards must not leave
+        // the consumed authority usable through its delegations.
+        let invoked = std::sync::atomic::AtomicBool::new(false);
+        for delegated in [&child, &grandchild] {
+            let result = gate.execute_with_authority(
+                delegated,
+                &|| {
+                    invoked.store(true, std::sync::atomic::Ordering::SeqCst);
+                    Ok("escaped".to_string())
+                },
+                "use_delegation",
+                "read",
+            );
+            assert!(
+                matches!(result, Err(ExecutionGateError::InvalidAuthority(_))),
+                "{} executed after its predecessor was consumed",
+                delegated.id
+            );
+            assert!(!gate.is_authority_consumed(delegated).unwrap());
+        }
+        assert!(!invoked.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(gate.verify_audit_chain().unwrap());
+    }
+
+    #[test]
     fn test_standalone_integrity_is_not_gate_provenance() {
         let gate = ExecutionGate::new(|_| true);
         let standalone = DecisionTrace::new(
